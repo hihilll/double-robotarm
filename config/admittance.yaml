@@ -1,0 +1,75 @@
+# 导纳参数表（§4.2 起始值，调试中修改这里而不是代码）
+# m/d/k: 平动三通道 [x, y, z]（{H} 系）; mr/dr/kr: 转动三通道
+
+modes:
+  hand_push_demo:     # 阶段2验收: 手推跟随
+    m:  [5.0, 5.0, 5.0]
+    d:  [80.0, 80.0, 80.0]
+    k:  [0.0, 0.0, 0.0]
+    mr: [0.05, 0.05, 0.05]
+    dr: [2.0, 2.0, 2.0]
+    kr: [0.0, 0.0, 0.0]
+
+  search:             # 螺旋搜孔: XY 低刚度, Z 恒力(k_z=0 由 wrench_ref 提供推力)
+    m:  [5.0, 5.0, 5.0]
+    d:  [200.0, 200.0, 300.0]
+    k:  [100.0, 100.0, 0.0]
+    mr: [0.05, 0.05, 0.05]
+    dr: [3.0, 3.0, 5.0]
+    kr: [30.0, 30.0, 20.0]
+
+  insert:             # 柔顺插入: 转动XY低刚度(软件RCC)
+    m:  [5.0, 5.0, 5.0]
+    d:  [200.0, 200.0, 300.0]
+    k:  [300.0, 300.0, 0.0]
+    mr: [0.05, 0.05, 0.05]
+    dr: [3.0, 3.0, 5.0]
+    kr: [3.0, 3.0, 20.0]
+
+limits:               # 导纳积分限幅
+  max_offset: 0.020        # m
+  max_vel: 0.10            # m/s
+  max_rot_offset: 0.26     # rad ≈ 15°
+  max_rot_vel: 0.5         # rad/s
+
+safety:               # §4.4 安全层
+  f_max: 40.0              # N
+  t_max: 5.0               # N·m
+  ft_timeout: 0.05         # s, 力传感器数据超时
+  max_servo_jump: 0.005    # m, servoL 目标突跳判定(飞车)
+  workspace_min: [-0.85, -0.85, 0.02]   # 世界系工作空间盒 TODO 按布置调整
+  workspace_max: [0.85, 0.85, 0.90]
+
+tasks:                # §5 任务参数
+  plug_insert:
+    contact_force: 4.0       # N, guarded_move 停止阈值
+    search_force: 7.0        # N, 搜孔恒压
+    spiral_pitch: 0.0008     # m/圈
+    spiral_v: 0.004          # m/s
+    spiral_r_max: 0.006      # m
+    drop_dz: 0.0015          # m, 落入判据: Z 突进
+    insert_force: 12.0       # N
+    insert_depth: 0.012      # m TODO: 按插头 CAD
+  screw_place:
+    contact_force: 2.5
+    search_force: 4.0
+    spiral_pitch: 0.0005
+    spiral_v: 0.003
+    spiral_r_max: 0.005
+    drop_dz: 0.0010
+    insert_force: 5.0
+    insert_depth: 0.003      # 1~2 牙深即算成功
+  plug_extract:              # §5.2 拔出(#32)
+    grasp_advance: 0.010     # m, 从孔口沿+Z_H 前进多少到达夹持位 TODO 按插头体
+    f_start: 5.0             # N, 拉拔起始力
+    f_rate: 5.0              # N/s, 力斜坡
+    f_max: 30.0              # N, 上限(需 > 实测卡合力)
+    extract_dist: 0.012      # m, ≥插针长度
+    wiggle_above: 25.0       # N, 拉力达此值仍不动则叠加摆动
+
+state_machine:               # 状态机通用参数(#28)
+  standoff: 0.015            # m, 孔口上方接近距离
+  approach_v: 0.10           # m/s, move_free 速度
+  contact_v: 0.005           # m/s, guarded_move 速度
+  retries: 3                 # RETRY 次数上限
+  vision_consistency: 0.005  # m, 视觉{H}与运动学{H}偏差超此值报警不执行(#30)

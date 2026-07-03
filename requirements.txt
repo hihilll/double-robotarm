@@ -1,0 +1,14 @@
+# 通讯与控制
+ur_rtde>=1.5.6        # UR RTDE 接口 (pip 包名 ur-rtde)
+numpy>=1.24
+scipy>=1.10
+pyyaml>=6.0
+pymodbus>=3.5         # 大寰夹爪 Modbus-RTU/TCP
+
+h5py>=3.9             # 125Hz 运行日志 (#23)
+matplotlib>=3.7       # 日志回放绘图
+
+# 阶段4 视觉（先装好不碍事）
+opencv-python>=4.8
+pupil-apriltags>=1.0  # AprilTag 检测
+# pyrealsense2        # RealSense 相机，按实际购买型号安装

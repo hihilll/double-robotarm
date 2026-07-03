@@ -1,0 +1,64 @@
+# 全局硬件配置。TODO 标记的项在标定/负载辨识后回填。
+world_frame: ur5_base   # 世界系取 UR5 基座系
+
+ur5:                        # 操作臂
+  ip: 192.168.1.10
+  frequency: 125.0          # CB3 上限
+  tcp_offset: [0.0, 0.0, 0.180, 0.0, 0.0, 0.0]   # TODO: 四点法标定到工件尖端后回填
+  home_j_deg: [0, -90, 90, -90, -90, 0]           # TODO: 按现场布置调整
+
+ur10:                       # 固定臂
+  ip: 192.168.1.20
+  frequency: 125.0
+  tcp_offset: [0.0, 0.0, 0.160, 0.0, 0.0, 0.0]   # TODO
+  home_j_deg: [0, -90, 90, -90, -90, 0]           # TODO
+  present_pose: [0.5, 0.0, 0.4, 0.0, 3.1416, 0.0] # TODO: 呈现位姿(其基座系), 定好后锁死
+  pick_pose: null           # TODO(阶段5): 料位抓取位姿, 现场示教后填; null=跳过pick/place
+
+# T_B5→B10: UR10 基座在世界系({B5})下的位姿, 双臂标定(§3.4)后回填
+dual_arm_calib:
+  pose_b10_in_world: [1.30, 0.0, 0.0, 0.0, 0.0, 3.1416]   # TODO
+
+ft_sensor:
+  type: ati_axia            # 可选: ati_axia / kunwei / sri (驱动里按型号实现)
+  ip: 192.168.1.30
+  port: 49152               # ATI NetFT RDT 默认端口
+  counts_per_force: 1000000.0    # 以传感器标定单出厂参数为准
+  counts_per_torque: 1000000.0
+  lpf_cutoff_hz: 15.0
+  deadband_force: 0.5       # N
+  deadband_torque: 0.05     # N·m
+  # 传感器系相对 TCP 的安装关系（TODO: 按转接板 CAD/负载辨识校准）
+  R_tcp_sensor: [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+  p_sensor_to_tcp: [0.0, 0.0, 0.120]   # 传感器原点→TCP 矢量, 传感器系下 (m)
+
+# 负载参数：每种夹持物一组, calib/payload_id.py 的输出直接粘贴到这里
+payloads:
+  none:  {mass: 0.90, cog: [0.0, 0.0, 0.05], bias: [0, 0, 0, 0, 0, 0]}  # 仅夹爪 TODO
+  plug:  {mass: 0.0,  cog: [0.0, 0.0, 0.0],  bias: [0, 0, 0, 0, 0, 0]}  # TODO
+  screw: {mass: 0.0,  cog: [0.0, 0.0, 0.0],  bias: [0, 0, 0, 0, 0, 0]}  # TODO
+
+grippers:
+  ur5:  {type: dh_modbus, port: /dev/ttyUSB0, slave_id: 1, baudrate: 115200}
+  ur10: {type: dh_modbus, port: /dev/ttyUSB1, slave_id: 1, baudrate: 115200}
+
+# 任务几何: {H} 相对 UR10 TCP 的位姿(治具 CAD 给出, §7.1)。双臂集成时据此算 {H}
+task_geometry:
+  plug_insert:  {hole_in_ur10_tcp: [0.0, 0.0, 0.060, 0.0, 0.0, 0.0]}   # TODO 治具CAD
+  plug_extract: {hole_in_ur10_tcp: [0.0, 0.0, 0.060, 0.0, 0.0, 0.0]}   # TODO
+  screw_place:  {hole_in_ur10_tcp: [0.0, 0.0, 0.050, 0.0, 0.0, 0.0]}   # TODO
+
+camera:                       # 阶段4 (#20/#29)
+  wrist:
+    serial: ""                # TODO: rs-enumerate-devices 查 D405 序列号
+    width: 848
+    height: 480
+    fps: 30
+  T_tcp_cam: null             # TODO: calib/handeye.py 输出(pose6)
+  tag:
+    family: tag36h11
+    size: 0.024               # m, 打印后实测标签边长
+    T_tag_hole:               # tag系→{H}, 治具 CAD 量出
+      plug_insert:  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # TODO
+      plug_extract: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # TODO
+      screw_place:  [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]   # TODO

@@ -1,0 +1,61 @@
+# 方案二(Comp-ACT)全部参数：采集/训练/部署。方案一 config/*.yaml 只读不改。
+freq_control: 125.0        # CB3 RTDE 主环频率(与方案一一致)
+freq_record: 25.0          # 采集/策略频率 = 主环的 1/5
+
+teleop:
+  v_lin_max: 0.06          # m/s, SpaceMouse 满偏平动速度
+  v_rot_max: 0.30          # rad/s, 满偏转动速度
+  deadzone: 0.12           # 摇杆死区(归一化输入)
+  leash_mm: 30.0           # 参考位姿离实际 TCP 的最大距离(防机械臂被挡时 ref 跑飞)
+  axis_sign: [1, 1, 1, 1, 1, 1]   # ⚠ SpaceMouse 轴向符号, 真机首测逐轴核对
+  buttons: {mode_cycle: 0, gripper_toggle: 1}   # SpaceMouse Compact 两键
+  gripper_close_permille: 200     # 夹爪"闭合"目标(千分比) TODO 按工件直径调
+  admittance_on: true      # 演示时叠加导纳(数据自带柔顺行为, Comp-ACT 同思路)
+
+# 刚度三档预设(同构于 Comp-ACT 的 Low/Mid/High 档位切换)。
+# ⚠ 与方案一不同: 无 k=0 恒力通道——接触力由"参考位姿压入表面 × 刚度"自然产生。
+# TODO 真机调: 上限以 M2 验收时不振荡为准。
+stiffness_modes:
+  low:  {k: [100.0, 100.0, 100.0], kr: [4.0, 4.0, 4.0]}      # 接近/自由空间
+  mid:  {k: [350.0, 350.0, 350.0], kr: [12.0, 12.0, 12.0]}   # 接触/搜索
+  high: {k: [700.0, 700.0, 700.0], kr: [30.0, 30.0, 30.0]}   # 精插/退出
+
+admittance:                # 导纳派生参数: d = max(d_min, 2ζ√(k·m))
+  m:  [5.0, 5.0, 5.0]      # 虚拟质量(与方案一起始值一致)
+  mr: [0.05, 0.05, 0.05]
+  zeta: 1.0                # 临界阻尼
+  d_min:  [80.0, 80.0, 80.0]
+  dr_min: [2.0, 2.0, 2.0]
+
+cameras:
+  wrist:  {serial: "", width: 848, height: 480, fps: 30}   # D405 TODO serial
+  global: {serial: "", width: 848, height: 480, fps: 30}   # D435 TODO serial
+  out_width: 424           # 入数据集前缩放
+  out_height: 240
+
+dataset:
+  root: il/logs_il/datasets     # 本地数据集根(可不推 Hub 直接训练)
+  repo_prefix: dualarm          # 数据集名 = <prefix>_<task>
+  fps: 25
+
+tasks:                     # 采集随机化: 每 episode UR10 呈现位姿扰动(大于评测的±3)
+  plug_insert:  {perturb_mm: 5.0, perturb_deg: 5.0}
+  plug_extract: {perturb_mm: 5.0, perturb_deg: 5.0}
+  screw_place:  {perturb_mm: 5.0, perturb_deg: 5.0}
+
+train:                     # lerobot-train 参数(il/learning/train_compact.py 组装)
+  policy: act
+  chunk_size: 50           # 2s @ 25Hz
+  n_action_steps: 50
+  batch_size: 8
+  steps: 100000
+  lr: 1.0e-5
+  device: cuda
+
+deploy:
+  host: 127.0.0.1
+  port: 5555
+  infer_hz: 10.0           # 执行器向策略服务请求动作块的频率
+  ensemble_m: 0.15         # temporal ensemble 指数权重(越大越信新块)
+  max_step_mm: 2.0         # 125Hz 相邻目标位置限幅(防块切换突跳, 另有方案一安全层兜底)
+  stiffness_clamp: {k: [50.0, 800.0], kr: [2.0, 35.0]}   # 策略输出刚度硬限幅
